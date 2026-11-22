@@ -26,6 +26,9 @@ git clone https://github.com/ailuvu-art/dsh-working-note.git
 Then in the Harness: **Plugins → Add plugin → local directory** and pick the
 clone. Restart the Harness afterwards so the Host half loads.
 
+Any machine that should carry the plugin, including a checkout on another
+computer, installs the same way: clone it, then add the clone's directory.
+
 From a DSH agent session the same install is:
 
 ```text
