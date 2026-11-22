@@ -8,6 +8,14 @@ Pins the session's working context above the composer and keeps it in sync every
 
 The note lives on the Host (`ctx.storageDomain`, one record per session), so it survives page reloads and host restarts, reaches every connected device through the authenticated SSE stream, and is cleaned up with the session: idle eviction keeps it, archiving makes it read-only for the undo window, and it is removed when that window closes.
 
+## Status
+
+Working end to end on the Host side (storage, routes, ports, kill guard, `working_note`
+tool, git inspection) with **87 automated tests**. The one thing not yet confirmed by a
+human is the rendered strip and tab in a live browser — see [HANDOFF.md](HANDOFF.md) for
+what is verified, what is assumed, and what remains (including the 📌 button next to
+Quote).
+
 ## Where it appears
 
 | Surface | Slot |

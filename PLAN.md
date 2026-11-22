@@ -1,6 +1,6 @@
 # Implementation Plan — `dsh-working-note`
 
-> Spec: [SPEC.md](SPEC.md) · Contracts: [CONTRACTS.md](CONTRACTS.md) · Approved mockup: [mockup.html](mockup.html) · API recipes: [references/dsh-plugin-recipes.md](references/dsh-plugin-recipes.md)
+> Spec: [SPEC.md](SPEC.md) · Contracts: [CONTRACTS.md](CONTRACTS.md) · Approved mockup: [mockup.html](mockup.html) · API recipes: [references/dsh-plugin-recipes.md](references/dsh-plugin-recipes.md) · **Picking this up on another machine: [HANDOFF.md](HANDOFF.md) first.**
 
 **Approach:** author the bundle as a **plain-ESM Node package** (`index.mjs`, `client.js`, `src/*.mjs`) — the same shape as the working `dsh-favicon-status` bundle already in this profile. Host services are reached through Cordis (`ctx.*`), never imported from `@deepseek-ai/*`, so no dependency list, no build step, and HMR-friendly iteration.
 
@@ -15,10 +15,10 @@
 | P0 Scaffold + storage + lifecycle | ✅ done | `tests/unit/{steps,context-text,service,package}.test.mjs`, `tests/host/boot.test.mjs` — 72 tests green |
 | P1 Git/worktree inspector | ✅ verified | `tests/unit/git-numstat.test.mjs` + `tests/host/git.test.mjs` (real repo, real linked worktree, both deltas, non-repo fallback) |
 | P2 Port monitor + Kill all | ✅ verified | `/proc`/attribution/kill unit tests + `tests/host/ports.test.mjs`: a real child carrying `DSH_SESSION_ID` is attributed to its Session only, killed on request, escalated to SIGKILL when it ignores SIGTERM, and the Harness pid is never attributed |
-| P3 Host API + client UI (strip, tab, contextmenu/Alt+Shift+P) | 🟡 code verified, live render unconfirmed | Host side is covered by `tests/host/api.test.mjs` and the client bundle by `package.test.mjs`. The restarted Harness (2026-11-21 11:43) now serves this build and exposes the `working_note` tool, the session's working note holds the 6 steps this agent wrote through the tool, and `conversation.input.dock` reports no `working-note` occupant from the live Client — while the same `apply` registers the dock id, tab type, tab body/title and gesture against a stub. Either the page has not loaded the new bundle yet, or a host-side client-module registration is failing without reaching inspect. Diagnosis needs one browser check. |
-| P4 Core slot + merged selection toolbar | ☐ **needs restart** | the additive action seat is a release-level change: it needs a DSH rebuild and a Host restart, which the running Host (started 2026-11-19) cannot pick up. Until then the plugin uses the shipped `contextmenu` + `Alt+Shift+P` pin, which needs no core change |
-| P5 Model integration (tool + context) | ✅ implemented, ⚠ tool call untested live | `working_note` appears in the live Host tool catalog and is covered by `tests/host/boot.test.mjs`; no real model call has exercised it yet |
-| P6 Install + live verification | 🟡 installed, UI unverified | `plugin_manager` → `application: applied`; the bundle is in the profile's `dsh.profile.bundles` and its routes answer 401 without a browser credential; the running Host is a static build whose `/plugins` route serves only installed rows, so a live UI probe needs a Harness restart. The client bundle activates cleanly against the real registration surface (stub-run of `apply` reports every registration, no error). C1–C6 and the UX review remain |
+| P3 Host API + client UI (strip, tab, contextmenu/`Alt+Shift+P`) | ✅ built, render fixed in 7 rounds — live look unconfirmed | Host side covered by `tests/host/api.test.mjs`; client contract by `tests/unit/package.test.mjs`; both surfaces by `tests/unit/render.test.mjs`. Seven real defects were found and fixed after the code first "looked done" — all listed in [HANDOFF.md](HANDOFF.md) §4 (face not exported, undeclared `inject`, duplicate locale on HMR, React error 185, null `git.uncommitted`, **git inspector never wired into the Host**, machine-specific smoke scripts). What is still missing is a human looking at the rendered strip and tab in a real browser. |
+| P4 Selection toolbar pin | ☐ **not started — plan below is stale, read HANDOFF §5** | the original plan assumed core changes that are no longer needed: core already ships the keyed `conversation.chat.text-interaction` slot and a `selection` text-interaction trigger (the `quote` plugin uses both), so **no DSH rebuild is required**. The gap is one `'selection'` branch plus a keyed slot renderer in `client.js`. Until then the shipped `contextmenu` + `Alt+Shift+P` pin works. |
+| P5 Model integration (tool + context) | ✅ implemented, ⚠ tool call untested live | `working_note` is in the live Host tool catalog, `set_steps` persisted steps to a real session, and `tests/host/boot.test.mjs` covers registration; no *model*-driven call has been asserted yet |
+| P6 Install + live verification | 🟡 installed and published; C1–C7 unverified | `plugin_manager` → `application: applied`; repo published at <https://github.com/ailuvu-art/dsh-working-note>; a fresh clone passes 87/87. Nobody has yet watched C1–C6 (and C7) happen in a browser against a real Harness — that is the top remaining task. |
 
 Each phase ends with: `node --test tests/` green, `plugin_manager` application `applied`, and this board updated.
 
@@ -112,15 +112,17 @@ dsh-working-note/
 | T3.7 | Theme tokens only (`--dsw-alias-*`), light/dark, 390 px layout | A2 |
 | T3.8 | Locale keys for every visible string (`workingNote` namespace) | |
 
-### P4 — Core slot + merged selection (≈0.5 session)
+### P4 — Selection toolbar pin (≈0.5 session)
+
+> ⚠️ **Superseded.** Two of these tasks describe a core change that is not needed: clicking Quote already opens a keyed slot through `uiConversation.interactions.register` + `request.open()`, and the surface component receives `{ dismiss, readText, clearSelection, … }`. The only real work is the plugin side (T4.4). Do not edit core `ui-chat` / `message-quotes` for this. See [HANDOFF.md](HANDOFF.md) §5.
 
 | ID | Task | Files |
 |---|---|---|
 | T4.1 | Add additive `conversation.chat.text-interaction.actions` list slot (session scope) to `ui-chat`'s slot map, rendered inside the existing selection surface next to Quote | `packages/client/ui-chat/src/client/contract/slots.ts`, `ChatView.tsx` |
 | T4.2 | Publish the selection surface to consumers (stable `{ trigger, dismiss, readText, clearSelection }`, re-rendered as `ChatView` already does) | `ChatView.tsx` |
 | T4.3 | Refactor `message-quotes` Quote button to register as an action instead of a hard-coded element | `packages/session/message-quotes/src/client/*` |
-| T4.4 | Working Note registers `📌 Pin note` + overflow (split into steps) action; applies to Quote selection **and** contextmenu trigger | `src/ui/selection.mjs` |
-| T4.5 | Rebuild Web bundle, refresh page, confirm existing quote behaviour unchanged | C3 |
+| T4.4 | **Still valid:** `client.js` registers `working-note-pin` (handles `contextmenu` today); add the `selection` branch + a keyed `conversation.chat.text-interaction` renderer for the 📌 button. Splitting a multi-line selection into steps already happens in the contextmenu path — reuse it. | `client.js` |
+| T4.5 | ~~Rebuild Web bundle~~ No rebuild needed; hard reload, confirm 📌 and Quote both appear and Quote is unchanged | C3 |
 
 ### P5 — Model integration (≈0.5 session)
 
@@ -202,3 +204,4 @@ dsh-working-note/
 - Fix: `Cannot read properties of null (reading 'uncommitted')` in PinStrip — git frames without `uncommitted`/`branchDelta` were dereferenced unguarded. Added `formatCounts` field validation + `statRow()` helper; strip and panel now degrade to `—`. Render test covers 4 null-counter shapes. 85/85 pass. Awaiting user hard-reload confirmation.
 - Fix (root cause of the git pill never showing data): `createGitInspector` was never wired into the Host — `applyGit` had no caller, so every frame had `git: null` and the strip's git path was dead code. Wired into the `ports:proc` probe (one git inspection per scan tick over the Session's own checkout) and into `POST /refresh` via `host.refreshGit`; `host.log` exposed for source diagnostics. New `tests/host/git-wiring.test.mjs` fails if the wiring is removed. 87/87 pass. Requires a DSH restart (user restarts it themselves).
 - Published to GitHub: https://github.com/ailuvu-art/dsh-working-note (public, MIT). Made the smoke harness and docs machine-independent (`tests/browser.mjs` resolves playwright/Chromium or skips; absolute paths removed); `private: true` dropped and `repository`/`homepage`/`bugs` added. A clean clone passes 87/87.
+| 2026-11-22 | Handoff | Published a public repo (public, MIT) and wrote [HANDOFF.md](HANDOFF.md): done / problems / remaining / working agreements / kickoff prompt for a new machine. Corrected the P4 plan against the live DSH source — the keyed `conversation.chat.text-interaction` slot and the `selection` trigger already ship in core (the `quote` plugin uses both), so P4 needs no core edit and no rebuild, only a `'selection'` branch and a keyed renderer in `client.js`. `Alt+Shift+P` and `ctx.sidebarRight.mounted.getSnapshot()` were re-checked against `ISidebarRight` in the checkout and are correct. Suite unchanged: **87/87**. | `gh` repo checks, DSH source reads, `npm test` |
