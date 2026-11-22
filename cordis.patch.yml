@@ -1,0 +1,12 @@
+- insert:
+    - id: working-note
+      name: dsh-working-note
+      config:
+        portPollIntervalMs: 4000
+        gitTimeoutMs: 5000
+        killGraceMs: 1500
+        archiveGraceMs: 30000
+        stoppedPortTtlMs: 600000
+        scanWorktreeCwd: true
+        injectContextToModel: true
+        maxStepsPerSession: 200

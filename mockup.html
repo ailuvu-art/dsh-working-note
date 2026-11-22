@@ -1,0 +1,1363 @@
+<!doctype html>
+<html lang="vi" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DSH Working Note — Interactive Wireframe</title>
+<style>
+  /* ── DSH theme tokens (values mirror the live Theme provider) ───────────── */
+  :root[data-theme="dark"] {
+    --dsw-alias-bg-base: #1a1a1a;
+    --dsw-alias-bg-layer-1: #232323;
+    --dsw-alias-bg-layer-2: #2b2b2b;
+    --dsw-alias-bg-overlay: #303030;
+    --dsw-alias-border-l1: rgba(255,255,255,.08);
+    --dsw-alias-border-l2: rgba(255,255,255,.16);
+    --dsw-alias-brand-primary: #6d7cff;
+    --dsw-alias-label-primary: #e9e9ea;
+    --dsw-alias-label-secondary: #9a9aa1;
+    --dsw-alias-state-error-primary: #f06a6a;
+    --dsw-alias-state-idle-primary: #6b6b72;
+    --dsw-alias-state-success-primary: #46b879;
+    --dsw-alias-state-warn-primary: #e0a43a;
+    --dsw-specific-sidebar-fill: #202020;
+    --mock-shadow: 0 8px 28px rgba(0,0,0,.45);
+    --mock-code-fill: #262626;
+  }
+  :root[data-theme="light"] {
+    --dsw-alias-bg-base: #ffffff;
+    --dsw-alias-bg-layer-1: #fafafa;
+    --dsw-alias-bg-layer-2: #f2f2f3;
+    --dsw-alias-bg-overlay: #ffffff;
+    --dsw-alias-border-l1: rgba(0,0,0,.08);
+    --dsw-alias-border-l2: rgba(0,0,0,.16);
+    --dsw-alias-brand-primary: #4f5bd5;
+    --dsw-alias-label-primary: #1d1d20;
+    --dsw-alias-label-secondary: #6b6b72;
+    --dsw-alias-state-error-primary: #d64545;
+    --dsw-alias-state-idle-primary: #9a9aa1;
+    --dsw-alias-state-success-primary: #1f9d55;
+    --dsw-alias-state-warn-primary: #b7791f;
+    --dsw-specific-sidebar-fill: #f7f7f8;
+    --mock-shadow: 0 8px 24px rgba(20,20,40,.12);
+    --mock-code-fill: #f4f4f5;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 13px;
+    line-height: 1.45;
+    background: var(--dsw-alias-bg-base);
+    color: var(--dsw-alias-label-primary);
+    overflow: hidden;
+  }
+  button { font: inherit; color: inherit; }
+  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+  /* ── Mockup chrome ─────────────────────────────────────────────────────── */
+  .mock-bar {
+    display: flex; align-items: center; gap: 8px;
+    height: 40px; padding: 0 12px;
+    border-bottom: 1px solid var(--dsw-alias-border-l1);
+    background: var(--dsw-alias-bg-layer-1);
+    font-size: 12px; color: var(--dsw-alias-label-secondary);
+  }
+  .mock-bar .title { color: var(--dsw-alias-label-primary); font-weight: 600; }
+  .mock-bar .sep { flex: 1; }
+  .toggle-group { display: inline-flex; border: 1px solid var(--dsw-alias-border-l1); border-radius: 999px; overflow: hidden; }
+  .toggle-group button {
+    border: 0; background: transparent; padding: 4px 10px; cursor: pointer; color: var(--dsw-alias-label-secondary);
+  }
+  .toggle-group button[aria-pressed="true"] { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
+  .chip-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-1);
+    border-radius: 8px; padding: 3px 8px; cursor: pointer; color: var(--dsw-alias-label-secondary);
+  }
+  .chip-btn:hover { border-color: var(--dsw-alias-border-l2); color: var(--dsw-alias-label-primary); }
+
+  /* ── App frame ─────────────────────────────────────────────────────────── */
+  .frame {
+    display: grid;
+    grid-template-columns: 232px minmax(0, 1fr) auto;
+    height: calc(100% - 40px);
+    transition: grid-template-columns 180ms ease;
+  }
+  .frame.sidebar-collapsed { grid-template-columns: 0 minmax(0, 1fr) auto; }
+  .frame.sidebar-collapsed .sidebar { display: none; }
+  .frame.rightbar-closed { grid-template-columns: 232px minmax(0, 1fr) 0; }
+  .frame.rightbar-closed .rightbar { display: none; }
+  .frame.sidebar-collapsed.rightbar-closed { grid-template-columns: 0 minmax(0, 1fr) 0; }
+
+  /* Sidebar */
+  .sidebar {
+    min-width: 0; border-right: 1px solid var(--dsw-alias-border-l1);
+    background: var(--dsw-specific-sidebar-fill);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .sidebar-head { padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; }
+  .brand { font-weight: 600; letter-spacing: .2px; }
+  .new-session {
+    margin: 0 10px 8px; display: flex; align-items: center; gap: 6px;
+    border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-1);
+    border-radius: 10px; padding: 7px 12px; width: calc(100% - 20px); cursor: pointer;
+    color: var(--dsw-alias-label-primary);
+  }
+  .session-list { padding: 4px 6px; overflow: auto; flex: 1; }
+  .session-row {
+    display: flex; flex-direction: column; gap: 3px;
+    padding: 7px 8px; border-radius: 8px; cursor: pointer; color: var(--dsw-alias-label-secondary);
+  }
+  .session-row:hover { background: var(--dsw-alias-bg-layer-2); }
+  .session-row.active { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
+  .session-row .r1 { display: flex; align-items: center; gap: 6px; }
+  .session-row .r2 { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+  .branch-glyph { color: var(--dsw-alias-brand-primary); }
+  .dot-ports { font-size: 10px; color: var(--dsw-alias-state-success-primary); }
+
+  /* Conversation column */
+  .main { min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .conv-header {
+    height: 44px; flex: none; display: flex; align-items: center; gap: 8px;
+    padding: 0 16px; border-bottom: 1px solid var(--dsw-alias-border-l1);
+    white-space: nowrap; overflow: hidden;
+  }
+  .conv-title { font-weight: 600; }
+  .conv-sub { color: var(--dsw-alias-label-secondary); font-size: 12px; }
+  .conv-header .grow { flex: 1; }
+  .icon-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border: 0; border-radius: 8px; background: transparent;
+    cursor: pointer; color: var(--dsw-alias-label-secondary); flex: none;
+  }
+  .icon-btn:hover { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
+  .badge-count {
+    position: absolute; margin: -14px 0 0 14px; min-width: 15px; height: 15px; padding: 0 4px;
+    border-radius: 999px; background: var(--dsw-alias-brand-primary); color: #fff;
+    font-size: 10px; line-height: 15px; text-align: center;
+  }
+
+  .transcript { flex: 1; overflow-y: auto; padding: 18px 24px 8px; position: relative; }
+  .msg { display: flex; flex-direction: column; gap: 6px; max-width: 760px; margin: 0 auto 18px; }
+  .msg.user { align-items: flex-end; }
+  .bubble {
+    border-radius: 14px; padding: 10px 13px; max-width: 88%;
+  }
+  .msg.user .bubble { background: var(--dsw-alias-bg-layer-2); }
+  .msg.assistant .bubble { padding: 0; }
+  .who { font-size: 11px; color: var(--dsw-alias-label-secondary); margin-bottom: 2px; }
+  .bubble p { margin: 0 0 8px; }
+  .bubble p:last-child { margin-bottom: 0; }
+  .bubble ul { margin: 6px 0 8px; padding-left: 20px; }
+  .tool-row {
+    display: inline-flex; align-items: center; gap: 8px; margin: 4px 0 10px;
+    border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-1);
+    border-radius: 10px; padding: 6px 10px; color: var(--dsw-alias-label-secondary); font-size: 12px;
+  }
+  .tool-row .ok { color: var(--dsw-alias-state-success-primary); }
+  .code-card {
+    border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px; overflow: hidden; margin: 6px 0 10px;
+    background: var(--mock-code-fill);
+  }
+  .code-card .code-head { display: flex; gap: 8px; align-items: center; padding: 6px 10px; border-bottom: 1px solid var(--dsw-alias-border-l1); font-size: 11px; color: var(--dsw-alias-label-secondary); }
+  .code-card pre { margin: 0; padding: 10px 12px; overflow-x: auto; font-size: 12px; }
+  mark.pin-sel {
+    background: color-mix(in srgb, var(--dsw-alias-brand-primary) 30%, transparent);
+    color: inherit; border-radius: 3px; box-shadow: 0 0 0 2px color-mix(in srgb, var(--dsw-alias-brand-primary) 30%, transparent);
+  }
+  .todo-line { display: flex; gap: 8px; align-items: center; padding: 3px 0; }
+  .step-check {
+    width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid var(--dsw-alias-border-l2);
+    display: inline-flex; align-items: center; justify-content: center; flex: none; font-size: 10px; cursor: pointer;
+    color: transparent; background: transparent;
+  }
+  .step-check.on { background: var(--dsw-alias-state-success-primary); border-color: var(--dsw-alias-state-success-primary); color: #fff; }
+
+  /* Composer + docks */
+  .composer-zone { flex: none; padding: 0 24px 14px; }
+  .dock { max-width: 900px; margin: 0 auto; }
+
+  .composer-card {
+    max-width: 900px; margin: 0 auto;
+    border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-1);
+    border-radius: 16px; padding: 10px 12px 8px; box-shadow: var(--mock-shadow);
+  }
+  .composer-input { min-height: 38px; color: var(--dsw-alias-label-secondary); padding: 4px 2px 10px; }
+  .composer-toolrow { display: flex; align-items: center; gap: 8px; color: var(--dsw-alias-label-secondary); font-size: 12px; }
+  .composer-toolrow .grow { flex: 1; }
+  .send-btn {
+    border: 0; border-radius: 999px; width: 28px; height: 28px;
+    background: var(--dsw-alias-brand-primary); color: #fff; cursor: pointer;
+  }
+
+  /* ── Working Note: compact pin strip ──────────────────────────────────── */
+  .wn-strip {
+    border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px;
+    background: var(--dsw-alias-bg-layer-1); margin-bottom: 8px; overflow: hidden;
+  }
+  .wn-strip-head {
+    display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 8px 0 10px; flex-wrap: nowrap;
+  }
+  .wn-strip-head .grow { flex: 1; min-width: 0; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px;
+    border-radius: 999px; border: 1px solid var(--dsw-alias-border-l1);
+    background: var(--dsw-alias-bg-base); white-space: nowrap; cursor: pointer;
+    font-size: 12px; color: var(--dsw-alias-label-primary); min-width: 0;
+  }
+  .pill:hover { border-color: var(--dsw-alias-border-l2); }
+  .pill .muted { color: var(--dsw-alias-label-secondary); }
+  .diff-add { color: var(--dsw-alias-state-success-primary); }
+  .diff-del { color: var(--dsw-alias-state-error-primary); }
+  .port-chip {
+    display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 6px 0 7px;
+    border-radius: 8px; border: 1px solid var(--dsw-alias-border-l1);
+    background: var(--dsw-alias-bg-base); font-size: 12px; white-space: nowrap;
+  }
+  .port-chip .live { width: 6px; height: 6px; border-radius: 999px; background: var(--dsw-alias-state-success-primary); }
+  .port-chip .dead { width: 6px; height: 6px; border-radius: 999px; background: var(--dsw-alias-state-idle-primary); }
+  .kill-all {
+    display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px;
+    border-radius: 8px; border: 1px solid var(--dsw-alias-border-l2);
+    background: transparent; cursor: pointer; font-size: 12px; white-space: nowrap;
+    color: var(--dsw-alias-label-primary);
+  }
+  .kill-all:hover { background: var(--dsw-alias-bg-layer-2); }
+  .kill-all.armed {
+    border-color: var(--dsw-alias-state-error-primary);
+    color: var(--dsw-alias-state-error-primary);
+    background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 12%, transparent);
+  }
+  .steps-pill .count { color: var(--dsw-alias-label-secondary); }
+
+  /* Expanded drawer inside strip */
+  .wn-body { border-top: 1px solid var(--dsw-alias-border-l1); padding: 10px 12px 12px; display: none; max-height: 44vh; overflow-y: auto; overscroll-behavior: contain; }
+  .wn-strip.expanded .wn-body { display: block; }
+  .wn-section { margin-bottom: 12px; }
+  .wn-section:last-child { margin-bottom: 0; }
+  .wn-section-head {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+    font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--dsw-alias-label-secondary);
+  }
+  .wn-section-head .grow { flex: 1; }
+  .link-btn { border: 0; background: transparent; cursor: pointer; color: var(--dsw-alias-label-secondary); padding: 0; font-size: 12px; }
+  .link-btn:hover { color: var(--dsw-alias-label-primary); text-decoration: underline; }
+  .link-btn.danger:hover { color: var(--dsw-alias-state-error-primary); }
+
+  .port-row, .step-row {
+    display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 8px;
+  }
+  .port-row:hover, .step-row:hover { background: var(--dsw-alias-bg-layer-2); }
+  .port-row .grow, .step-row .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tag {
+    font-size: 10px; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--dsw-alias-border-l1);
+    color: var(--dsw-alias-label-secondary); text-transform: uppercase; letter-spacing: .03em; flex: none;
+  }
+  .tag.ai { color: var(--dsw-alias-brand-primary); border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 45%, transparent); }
+  .tag.user { color: var(--dsw-alias-state-warn-primary); border-color: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 45%, transparent); }
+  .proc { color: var(--dsw-alias-label-secondary); font-size: 12px; }
+  .step-row.done .step-text { text-decoration: line-through; color: var(--dsw-alias-label-secondary); }
+  .step-text { outline: none; border-radius: 4px; padding: 1px 3px; margin: -1px -3px; }
+  .step-text:focus { background: var(--dsw-alias-bg-base); box-shadow: 0 0 0 1px var(--dsw-alias-border-l2); }
+  /* Two-line clamp keeps a long checklist from squeezing the transcript. */
+  .step-row .step-text, .rb-step > .grow > .step-text {
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal;
+  }
+  .step-text:focus { -webkit-line-clamp: unset; display: block; }
+  .step-tools { display: flex; gap: 2px; opacity: 0; }
+  .step-row:hover .step-tools, .step-row:focus-within .step-tools { opacity: 1; }
+  .mini-btn {
+    width: 22px; height: 22px; border: 0; border-radius: 6px; background: transparent;
+    cursor: pointer; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 1;
+  }
+  .mini-btn:hover { background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); }
+  .mini-btn.danger:hover { color: var(--dsw-alias-state-error-primary); }
+  .add-step { display: flex; gap: 6px; margin-top: 6px; }
+  .add-step input, .add-step textarea {
+    flex: 1; min-height: 30px; max-height: 96px; border-radius: 8px; border: 1px solid var(--dsw-alias-border-l1);
+    background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); padding: 6px 9px; font: inherit;
+    resize: vertical; line-height: 1.35;
+  }
+  .add-step input:focus, .add-step textarea:focus { outline: none; border-color: var(--dsw-alias-border-l2); }
+  .btn {
+    height: 30px; padding: 0 11px; border-radius: 8px; cursor: pointer; font-size: 12px; white-space: nowrap;
+    border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary);
+  }
+  .btn:hover { border-color: var(--dsw-alias-border-l2); }
+  .btn.primary { background: var(--dsw-alias-brand-primary); border-color: var(--dsw-alias-brand-primary); color: #fff; }
+  .wn-foot { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 11px; color: var(--dsw-alias-label-secondary); }
+  .wn-foot .grow { flex: 1; }
+  .empty-note { color: var(--dsw-alias-label-secondary); font-size: 12px; padding: 4px 6px; }
+  .readonly-note {
+    display: flex; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 8px;
+    border: 1px dashed var(--dsw-alias-border-l2); color: var(--dsw-alias-label-secondary); font-size: 12px;
+  }
+
+  /* ── Right sidebar ─────────────────────────────────────────────────────── */
+  .rightbar {
+    width: 392px; border-left: 1px solid var(--dsw-alias-border-l1);
+    background: var(--dsw-alias-bg-base); display: flex; flex-direction: column; overflow: hidden;
+  }
+  .rb-strip { display: flex; align-items: center; gap: 6px; height: 40px; padding: 0 8px; border-bottom: 1px solid var(--dsw-alias-border-l1); }
+  .rb-tab {
+    display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 8px;
+    background: var(--dsw-alias-bg-layer-2); font-size: 12px; border: 1px solid var(--dsw-alias-border-l1);
+  }
+  .rb-tab.ghost { background: transparent; border-color: transparent; color: var(--dsw-alias-label-secondary); }
+  .rb-strip .grow { flex: 1; }
+  .rb-body { flex: 1; overflow: auto; padding: 14px; }
+  .rb-title { display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 4px; }
+  .rb-title .grow { flex: 1; }
+  .rb-sub { color: var(--dsw-alias-label-secondary); font-size: 12px; margin-bottom: 14px; }
+  .card {
+    border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px; background: var(--dsw-alias-bg-layer-1);
+    padding: 12px; margin-bottom: 12px;
+  }
+  .card h3 { margin: 0 0 10px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--dsw-alias-label-secondary); font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .card h3 .grow { flex: 1; }
+  .kv { display: grid; grid-template-columns: 96px minmax(0,1fr); gap: 6px 10px; font-size: 12px; }
+  .kv .k { color: var(--dsw-alias-label-secondary); }
+  .kv .v { min-width: 0; overflow-wrap: anywhere; }
+  .path-row { display: flex; align-items: center; gap: 6px; }
+  .path-row .mono { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stat-strip { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .stat {
+    border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; padding: 8px 10px; background: var(--dsw-alias-bg-base);
+  }
+  .stat .lab { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--dsw-alias-label-secondary); }
+  .stat .num { font-size: 15px; font-weight: 600; margin-top: 2px; }
+  .stat .num small { font-weight: 400; font-size: 11px; }
+  .rb-step { display: flex; align-items: flex-start; gap: 8px; padding: 6px; border-radius: 8px; }
+  .rb-step:hover { background: var(--dsw-alias-bg-layer-2); }
+  .rb-step .grow { flex: 1; }
+  .rb-step.done .step-text { text-decoration: line-through; color: var(--dsw-alias-label-secondary); }
+  .rb-step .meta { font-size: 10px; color: var(--dsw-alias-label-secondary); margin-top: 2px; }
+  .btn-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+
+  /* Port table in sidebar */
+  .port-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .port-table th {
+    text-align: left; font-weight: 500; color: var(--dsw-alias-label-secondary); font-size: 10px;
+    text-transform: uppercase; letter-spacing: .05em; padding: 0 6px 6px;
+  }
+  .port-table td { padding: 7px 6px; border-top: 1px solid var(--dsw-alias-border-l1); vertical-align: top; }
+  .port-table tr:hover td { background: var(--dsw-alias-bg-layer-2); }
+  .port-table .cmd { color: var(--dsw-alias-label-secondary); font-size: 11px; overflow-wrap: anywhere; }
+  .port-table .actions { text-align: right; white-space: nowrap; }
+
+  /* ── Selection toolbar (chat text interaction) ─────────────────────────── */
+  .sel-toolbar {
+    position: fixed; z-index: 30; display: none; align-items: center; gap: 2px;
+    background: var(--dsw-alias-bg-overlay); border: 1px solid var(--dsw-alias-border-l2);
+    border-radius: 10px; box-shadow: var(--mock-shadow); padding: 3px;
+  }
+  .sel-toolbar.open { display: inline-flex; }
+  .sel-toolbar button {
+    display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 9px;
+    border: 0; border-radius: 7px; background: transparent; cursor: pointer; font-size: 12px;
+    color: var(--dsw-alias-label-primary); white-space: nowrap;
+  }
+  .sel-toolbar button:hover { background: var(--dsw-alias-bg-layer-2); }
+  .sel-toolbar .div { width: 1px; height: 16px; background: var(--dsw-alias-border-l1); }
+  .sel-toolbar .split-menu {
+    position: absolute; top: calc(100% + 6px); right: 0; min-width: 210px;
+    background: var(--dsw-alias-bg-overlay); border: 1px solid var(--dsw-alias-border-l2);
+    border-radius: 10px; box-shadow: var(--mock-shadow); padding: 4px; display: none;
+  }
+  .sel-toolbar .split-menu.open { display: block; }
+  .sel-toolbar .split-menu button { width: 100%; height: auto; padding: 7px 9px; justify-content: flex-start; border-radius: 7px; flex-direction: column; align-items: flex-start; gap: 1px; }
+  .sel-toolbar .split-menu button small { color: var(--dsw-alias-label-secondary); font-size: 11px; }
+
+  /* ── Context menu fallback ─────────────────────────────────────────────── */
+  .ctx-menu {
+    position: fixed; z-index: 31; display: none; min-width: 210px;
+    background: var(--dsw-alias-bg-overlay); border: 1px solid var(--dsw-alias-border-l2);
+    border-radius: 10px; box-shadow: var(--mock-shadow); padding: 4px;
+  }
+  .ctx-menu.open { display: block; }
+  .ctx-menu button {
+    display: flex; width: 100%; align-items: center; gap: 8px; padding: 7px 9px;
+    border: 0; border-radius: 7px; background: transparent; cursor: pointer; text-align: left; font-size: 12px;
+  }
+  .ctx-menu button:hover { background: var(--dsw-alias-bg-layer-2); }
+  .ctx-menu .hint { margin-left: auto; color: var(--dsw-alias-label-secondary); font-size: 11px; }
+  .ctx-menu .sep { height: 1px; background: var(--dsw-alias-border-l1); margin: 4px 0; }
+
+  /* ── Toasts ───────────────────────────────────────────────────────────── */
+  .toasts { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; z-index: 40; align-items: center; }
+  .toast {
+    background: var(--dsw-alias-bg-overlay); border: 1px solid var(--dsw-alias-border-l2);
+    border-radius: 10px; padding: 8px 12px; box-shadow: var(--mock-shadow); font-size: 12px;
+    animation: toast-in 140ms ease-out;
+  }
+  .toast .ok { color: var(--dsw-alias-state-success-primary); }
+  .toast .warn { color: var(--dsw-alias-state-warn-primary); }
+  @keyframes toast-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  /* ── Event log ────────────────────────────────────────────────────────── */
+  .evlog {
+    position: fixed; right: 12px; bottom: 12px; z-index: 25; width: 340px; max-height: 210px;
+    border: 1px solid var(--dsw-alias-border-l2); border-radius: 12px; overflow: hidden;
+    background: var(--dsw-alias-bg-overlay); box-shadow: var(--mock-shadow); display: flex; flex-direction: column;
+  }
+  .evlog-head { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--dsw-alias-border-l1); font-size: 11px; color: var(--dsw-alias-label-secondary); }
+  .evlog-head .grow { flex: 1; }
+  .evlog-body { overflow: auto; padding: 6px 10px 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; }
+  .evlog-body div { padding: 2px 0; border-bottom: 1px dashed var(--dsw-alias-border-l1); overflow-wrap: anywhere; }
+  .evlog-body div:last-child { border-bottom: 0; }
+  .evlog .t { color: var(--dsw-alias-label-secondary); margin-right: 6px; }
+  .evlog .api { color: var(--dsw-alias-brand-primary); }
+
+  /* ── "How to try" hint ────────────────────────────────────────────────── */
+  .hint-card {
+    position: fixed; left: 12px; bottom: 12px; z-index: 25; width: 330px;
+    border: 1px solid var(--dsw-alias-border-l2); border-radius: 12px; padding: 10px 12px;
+    background: var(--dsw-alias-bg-overlay); box-shadow: var(--mock-shadow); font-size: 12px;
+  }
+  .hint-card h4 { margin: 0 0 6px; font-size: 12px; }
+  .hint-card ol { margin: 0; padding-left: 18px; color: var(--dsw-alias-label-secondary); }
+  .hint-card li { margin: 3px 0; }
+  .hint-card .close { position: absolute; top: 6px; right: 6px; }
+  .hint-card .note { margin-top: 8px; color: var(--dsw-alias-label-secondary); font-size: 11px; }
+  kbd {
+    font: inherit; font-size: 11px; border: 1px solid var(--dsw-alias-border-l2); border-bottom-width: 2px;
+    border-radius: 5px; padding: 0 4px; color: var(--dsw-alias-label-primary);
+  }
+
+  @media (max-width: 1100px) {
+    .rightbar { width: 340px; }
+    .evlog { display: none; }
+  }
+  @media (max-width: 860px) {
+    .frame { grid-template-columns: 0 minmax(0,1fr) 0; }
+    .sidebar { display: none; }
+    .frame.rightbar-open .rightbar { position: fixed; inset: 40px 0 0 0; width: 100%; z-index: 20; border-left: 0; }
+    .frame:not(.rightbar-open) .rightbar { display: none; }
+    .hint-card { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═════════════════════ Mockup chrome ══════════════════════════════════ -->
+<div class="mock-bar">
+  <span class="title">DSH Working Note</span>
+  <span>— interactive wireframe</span>
+  <span class="sep"></span>
+  <span>Theme</span>
+  <span class="toggle-group" role="group" aria-label="Theme">
+    <button type="button" data-theme-set="dark" aria-pressed="true">Dark</button>
+    <button type="button" data-theme-set="light" aria-pressed="false">Light</button>
+  </span>
+  <button type="button" class="chip-btn" id="toggleSidebar" title="Toggle left sidebar">☰ Sidebar</button>
+  <button type="button" class="chip-btn" id="toggleRightbar" title="Toggle right sidebar">▥ Rightbar</button>
+  <button type="button" class="chip-btn" id="resetDemo" title="Reset the demo state">↺ Reset</button>
+</div>
+
+<!-- ═════════════════════ App frame ═════════════════════════════════════ -->
+<div class="frame rightbar-open" id="frame">
+
+  <!-- Left sidebar (context only) -->
+  <aside class="sidebar">
+    <div class="sidebar-head">
+      <span class="brand">DeepSeek Harness</span>
+      <button type="button" class="icon-btn" title="Search">⌕</button>
+    </div>
+    <button type="button" class="new-session">＋ New session</button>
+    <div class="session-list">
+      <div class="session-row active">
+        <div class="r1"><span>Fix OAuth callback on staging</span></div>
+        <div class="r2"><span class="branch-glyph">⑂ dsh-6b1f02c4-9a3e</span><span class="dot-ports" title="2 ports listening">● 2 ports</span><span>now</span></div>
+      </div>
+      <div class="session-row">
+        <div class="r1"><span>Refactor billing webhooks</span></div>
+        <div class="r2"><span>12:40</span></div>
+      </div>
+      <div class="session-row">
+        <div class="r1"><span>Write migration guide</span></div>
+        <div class="r2"><span>Yesterday</span></div>
+      </div>
+      <div class="session-row">
+        <div class="r1"><span>Add e2e smoke test</span></div>
+        <div class="r2"><span>Yesterday</span></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Conversation column -->
+  <section class="main">
+    <header class="conv-header">
+      <span class="conv-title">Fix OAuth callback on staging</span>
+      <span class="conv-sub">Chat</span>
+      <span class="grow"></span>
+      <button type="button" class="icon-btn" id="openSidebarFromHeader" title="Open Working Note in right sidebar">▥</button>
+      <button type="button" class="icon-btn" title="More">⋯</button>
+    </header>
+
+    <div class="transcript" id="transcript">
+      <div class="msg user">
+        <div class="bubble"><p>Login trên staging đang redirect sai. Chạy dev server giúp tôi rồi hướng dẫn tôi test tay nhé.</p></div>
+      </div>
+
+      <div class="msg assistant">
+        <div class="bubble">
+          <p>Tôi đã start backend và web dev server trong background, cả hai đang lắng nghe:</p>
+          <div class="tool-row"><span class="ok">✓</span><span class="mono">bash</span><span>uvicorn app.main:app --port 8000</span><span class="mono">job-3f91</span></div>
+          <div class="tool-row"><span class="ok">✓</span><span class="mono">bash</span><span>pnpm dev --port 5173</span><span class="mono">job-8ad2</span></div>
+          <p id="stepsSource">Các bước cần bạn làm tay:</p>
+          <ul id="stepsSourceList">
+            <li>Mở <code>http://127.0.0.1:5173/login</code> và bấm <strong>Continue with GitHub</strong>.</li>
+            <li>Quan sát network tab: request tới <code>/auth/callback</code> phải trả về <code>302</code> tới <code>/dashboard</code>.</li>
+            <li>Sau đó chạy <code>pnpm test:e2e -- auth</code> trong terminal của bạn và dán log lại vào chat.</li>
+          </ul>
+          <p>Đoạn ni cần kiểm tra thêm: <span id="selDemo">session token phải được set với <code>SameSite=Lax</code>, không được dùng <code>SameSite=None</code> vì Safari sẽ chặn</span>.</p>
+          <p class="muted" style="color:var(--dsw-alias-label-secondary); font-size:12px">Ghi chú đã được ghim vào Working Note — bấm vào thanh ghim phía trên ô chat để xem.</p>
+        </div>
+      </div>
+
+      <div class="msg user">
+        <div class="bubble"><p>Đã mở trang, bấm GitHub xong nó redirect về <code>/auth/callback?error=state_mismatch</code>.</p></div>
+      </div>
+
+      <div class="msg assistant">
+        <div class="bubble">
+          <p>Đúng như nghi ngờ — state cookie bị mất giữa hai request. Tôi vừa sửa middleware và commit nháp:</p>
+          <div class="tool-row"><span class="ok">✓</span><span class="mono">edit</span><span>src/server/oauth/state-cookie.ts</span></div>
+          <div class="code-card">
+            <div class="code-head"><span class="mono">diff</span><span>1 file changed</span><span class="diff-add">+14</span><span class="diff-del">−3</span></div>
+            <pre><code>  const state = randomUUID()
+- cookies.set('oauth_state', state)
++ cookies.set('oauth_state', state, {
++   httpOnly: true,
++   sameSite: 'lax',
++   secure: process.env.NODE_ENV === 'production',
++   path: '/auth',
++ })</code></pre>
+          </div>
+          <p>Bạn reload lại trang login và thử lại giúp tôi nhé.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Composer zone: Working Note strip + composer card -->
+    <div class="composer-zone">
+      <div class="dock">
+
+        <!-- ── Working Note: compact pin strip (conversation.input.dock) ── -->
+        <section class="wn-strip" id="wnStrip" aria-label="Working Note">
+          <div class="wn-strip-head">
+            <button type="button" class="pill" id="gitPill" title="Xem chi tiết worktree &amp; git trong right sidebar">
+              <span class="branch-glyph">⑂</span>
+              <span class="mono" id="gitBranch">wt:dsh-6b1f02c4-9a3e</span>
+              <span class="muted" id="gitScopeLabel">· uncommitted</span>
+              <span class="diff-add" id="gitAdd">+142</span>
+              <span class="diff-del" id="gitDel">−38</span>
+            </button>
+
+            <span id="portsChips" style="display:inline-flex;gap:4px;min-width:0;overflow:hidden"></span>
+
+            <button type="button" class="kill-all" id="killAllBtn" title="Terminate every port tracked for this session">⏻ Kill all <span id="killAllCount">(2)</span></button>
+
+            <span class="grow"></span>
+
+            <button type="button" class="pill steps-pill" id="stepsPill" title="Mở danh sách bước cần làm">
+              📌 <span id="stepsCount">2/4</span><span class="muted"> steps</span>
+            </button>
+            <button type="button" class="icon-btn" id="expandStrip" title="Mở rộng / thu gọn">▾</button>
+            <button type="button" class="icon-btn" id="popOut" title="Mở trong Right Sidebar">▥</button>
+          </div>
+
+          <div class="wn-body">
+            <!-- Ports -->
+            <div class="wn-section" id="portsSection">
+              <div class="wn-section-head">
+                <span>Ports</span><span id="portsMeta" class="muted"></span>
+                <span class="grow"></span>
+                <button type="button" class="link-btn" id="refreshPorts">Refresh</button>
+                <button type="button" class="link-btn" id="clearStopped">Clear stopped</button>
+              </div>
+              <div id="portRows"></div>
+            </div>
+
+            <!-- Steps -->
+            <div class="wn-section">
+              <div class="wn-section-head">
+                <span>Steps</span>
+                <span class="grow"></span>
+                <button type="button" class="link-btn" id="clearDone">Clear done</button>
+              </div>
+              <div id="stepRows"></div>
+              <form class="add-step" id="addStepForm">
+                <textarea id="addStepInput" rows="1" placeholder="Thêm một bước… (paste nhiều dòng để thêm hàng loạt)"></textarea>
+                <button type="submit" class="btn primary">Add</button>
+              </form>
+            </div>
+
+            <div class="wn-foot">
+              <span id="stepsRemaining">2 bước cần làm</span>
+              <span class="grow"></span>
+              <button type="button" class="link-btn" id="sendSummary">Gửi tóm tắt vào chat</button>
+            </div>
+          </div>
+        </section>
+
+        <div class="composer-card">
+          <div class="composer-input">Nhắn cho agent…</div>
+          <div class="composer-toolrow">
+            <button type="button" class="icon-btn" title="Attach">＋</button>
+            <span>Plan</span>
+            <span class="grow"></span>
+            <span>DeepSeek V3.2</span>
+            <button type="button" class="send-btn" title="Send">↑</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Right sidebar: Working Note tab -->
+  <aside class="rightbar" id="rightbar">
+    <div class="rb-strip">
+      <span class="rb-tab">📌 Working Note</span>
+      <span class="rb-tab ghost">Guide</span>
+      <span class="rb-tab ghost">Files</span>
+      <span class="grow"></span>
+      <button type="button" class="icon-btn" id="floatTab" title="Float panel (Dockkit)">⧉</button>
+      <button type="button" class="icon-btn" id="closeRightbar" title="Collapse right sidebar">✕</button>
+    </div>
+
+    <div class="rb-body" id="rbBody">
+      <div class="rb-title">📌 Working Note <span class="grow"></span>
+        <button type="button" class="icon-btn" id="rbRefresh" title="Refresh git + ports">↻</button>
+      </div>
+      <div class="rb-sub">Session “Fix OAuth callback on staging” · persisted on Host, synced to every device</div>
+
+      <!-- Worktree card -->
+      <div class="card">
+        <h3>Worktree &amp; git <span class="grow"></span>
+          <span class="tag" id="rbScopeTag">uncommitted</span>
+        </h3>
+        <div class="kv">
+          <span class="k">Checkout</span>
+          <span class="v path-row"><span class="mono" id="rbPath">/repo/.agents/worktrees/dsh-6b1f02c4-9a3e</span>
+            <button type="button" class="mini-btn" id="copyPath" title="Copy path">⧉</button></span>
+          <span class="k">Branch</span><span class="v mono" id="rbBranch">dsh-6b1f02c4-9a3e</span>
+          <span class="k">Kind</span><span class="v" id="rbKind">Linked worktree (created by this session)</span>
+          <span class="k">Base</span><span class="v mono">origin/main @ 9f2c1ab</span>
+        </div>
+        <div class="stat-strip">
+          <div class="stat"><div class="lab">Uncommitted</div><div class="num"><span class="diff-add" id="rbUncAdd">+142</span> <span class="diff-del" id="rbUncDel">−38</span> <small id="rbUncFiles">· 7 files</small></div></div>
+          <div class="stat"><div class="lab">Branch vs base</div><div class="num"><span class="diff-add">+196</span> <span class="diff-del">−51</span> <small>· 9 files</small></div></div>
+        </div>
+        <div class="btn-row">
+          <button type="button" class="btn" id="simEdit" title="Simulate an agent file edit (+18 −2)">Simulate edit</button>
+          <button type="button" class="btn" id="simUndoEdit" title="Undo the simulated edit">Undo edit</button>
+        </div>
+      </div>
+
+      <!-- Ports card -->
+      <div class="card">
+        <h3>Open ports <span class="muted" id="rbPortsMeta"></span> <span class="grow"></span>
+          <button type="button" class="link-btn" id="rbRefreshPorts">Refresh</button>
+        </h3>
+        <table class="port-table" id="rbPortTable">
+          <thead><tr><th>Port</th><th>Process</th><th>Origin</th><th></th></tr></thead>
+          <tbody id="rbPortBody"></tbody>
+        </table>
+        <div class="btn-row">
+          <button type="button" class="btn" id="simPort">Simulate new port :3000</button>
+          <button type="button" class="btn" id="rbKillAll">⏻ Kill all</button>
+        </div>
+        <div class="note" style="margin-top:8px;font-size:11px;color:var(--dsw-alias-label-secondary)">
+          Kill all sends SIGTERM to this session’s port-owning process groups, then SIGKILL after 1.5s. The DSH host process is never signalled.
+        </div>
+      </div>
+
+      <!-- Steps card -->
+      <div class="card">
+        <h3>Steps <span class="muted" id="rbStepsMeta"></span> <span class="grow"></span>
+          <button type="button" class="link-btn" id="rbClearDone">Clear done</button>
+        </h3>
+        <div id="rbSteps"></div>
+        <form class="add-step" id="rbAddStepForm">
+          <textarea id="rbAddStepInput" rows="1" placeholder="Thêm bước… (hoặc paste nhiều dòng)"></textarea>
+          <button type="submit" class="btn primary">Add</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Agent context</h3>
+        <div class="readonly-note">🤖 Tóm tắt Working Note được inject vào <code>systemPrompt.context</code> khi có bước chưa xong hoặc port đang mở, để sau nhiều lượt chat agent vẫn nhớ.</div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<!-- ═════════════════════ Selection toolbar ═════════════════════════════ -->
+<div class="sel-toolbar" id="selToolbar" role="toolbar" aria-label="Text selection actions">
+  <button type="button" id="actQuote">❝ Quote</button>
+  <span class="div"></span>
+  <button type="button" id="actPin">📌 Pin note</button>
+  <span class="div"></span>
+  <button type="button" id="actMore" aria-haspopup="menu" aria-expanded="false" title="More selection actions">⌄</button>
+  <div class="split-menu" id="splitMenu" role="menu">
+    <button type="button" role="menuitem" id="actSplit">Tách thành nhiều bước…<small>Mỗi dòng / mỗi gạch đầu dòng thành 1 step</small></button>
+    <button type="button" role="menuitem" id="actSendToChat">Quote + kèm Working Note vào chat</button>
+  </div>
+</div>
+
+<!-- ═════════════════════ Context menu fallback ═════════════════════════ -->
+<div class="ctx-menu" id="ctxMenu" role="menu">
+  <button type="button" role="menuitem" id="ctxPin">📌 Pin selected text to Working Note <span class="hint">Alt+Shift+P</span></button>
+  <button type="button" role="menuitem" id="ctxCopy">Copy</button>
+  <div class="sep"></div>
+  <button type="button" role="menuitem" id="ctxInspect">Inspect</button>
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<!-- ═════════════════════ Hint + event log ══════════════════════════════ -->
+<div class="hint-card" id="hintCard">
+  <button type="button" class="icon-btn close" id="closeHint" title="Hide">✕</button>
+  <h4>Thử tương tác</h4>
+  <ol>
+    <li>Bôi đen một đoạn text trong chat → thanh nổi hiện <strong>Quote | Pin note</strong>.</li>
+    <li>Bấm <strong>Kill all</strong> 2 lần để xác nhận (lần 2 trong 3 giây).</li>
+    <li>Bấm pill <strong>⑂ wt:…</strong> hoặc <strong>📌 steps</strong> để mở right sidebar.</li>
+    <li>Paste nhiều dòng vào ô “Add a step” để thêm hàng loạt.</li>
+    <li>Mở tab khác cùng file để xem trạng thái đồng bộ (cross-device).</li>
+  </ol>
+  <div class="note">Wireframe tĩnh dùng <strong>theme token</strong> thật của DSH. Dữ liệu mô phỏng lưu trên Host (<code>storageDomain</code>) và broadcast qua SSE như bản thật.</div>
+</div>
+
+<div class="evlog" id="evlog">
+  <div class="evlog-head"><span class="title" style="color:var(--dsw-alias-label-primary)">Event log (mock)</span><span class="grow"></span><button type="button" class="link-btn" id="clearLog">clear</button></div>
+  <div class="evlog-body" id="evlogBody"></div>
+</div>
+
+<script>
+(() => {
+  'use strict'
+
+  /* ── Demo data (mirrors SessionWorkingNoteRecord in SPEC.md §4.1) ─────── */
+  const SEED = {
+    git: {
+      cwd: '/repo/.agents/worktrees/dsh-6b1f02c4-9a3e',
+      isWorktree: true,
+      worktreeName: 'dsh-6b1f02c4-9a3e',
+      branch: 'dsh-6b1f02c4-9a3e',
+      base: 'origin/main @ 9f2c1ab',
+      uncommitted: { added: 142, deleted: 38, files: 7 },
+      branchDelta: { added: 196, deleted: 51, files: 9 },
+      scope: 'uncommitted',
+    },
+    ports: [
+      { port: 5173, host: '127.0.0.1', pid: 41230, processName: 'node', command: 'pnpm dev --port 5173', origin: 'job', jobId: 'job-8ad2', state: 'listening' },
+      { port: 8000, host: '127.0.0.1', pid: 41188, processName: 'uvicorn', command: 'uvicorn app.main:app --reload --port 8000', origin: 'job', jobId: 'job-3f91', state: 'listening' },
+    ],
+    steps: [
+      { id: 's1', text: 'Mở http://127.0.0.1:5173/login và bấm Continue with GitHub.', done: true, source: 'ai' },
+      { id: 's2', text: 'Network tab: /auth/callback phải trả 302 → /dashboard.', done: true, source: 'ai' },
+      { id: 's3', text: 'Reload trang login và thử lại sau khi sửa state cookie.', done: false, source: 'ai' },
+      { id: 's4', text: 'Session token phải set SameSite=Lax (Safari chặn None).', done: false, source: 'user' },
+    ],
+  }
+
+  const clone = (v) => JSON.parse(JSON.stringify(v))
+  const $ = (id) => document.getElementById(id)
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+
+  let state = clone(SEED)
+  let expanded = false
+  let killAllArmed = null
+  let log = []
+
+  /* ── Host event bus shared across tabs (simulates SSE fan-out) ────────── */
+  const CHANNEL_NAME = 'dsh-working-note-wireframe'
+  let channel = null
+  try { channel = new BroadcastChannel(CHANNEL_NAME) } catch { channel = null }
+
+  const broadcast = (msg) => {
+    if (channel !== null && msg.kind !== 'hello') channel.postMessage(msg)
+  }
+  if (channel !== null) {
+    channel.onmessage = (event) => {
+      const msg = event.data
+      if (msg === null || typeof msg !== 'object') return
+      if (msg.kind === 'hello') {
+        // A fresh tab asks existing tabs to re-broadcast their Host state.
+        if (log.length > 0) channel.postMessage({ kind: 'state', state })
+        return
+      }
+      // Any mutation from another device updates the whole UI.
+      if (msg.kind === 'state' && typeof msg.state === 'object') {
+        state = msg.state
+        addLog('↵', 'SSE tip từ thiết bị khác — state cập nhật', 'api')
+        render()
+      }
+      if (msg.kind === 'reset') {
+        state = clone(SEED)
+        expanded = false
+        addLog('↵', 'SSE tip: session reset từ thiết bị khác', 'api')
+        render()
+      }
+      if (msg.kind === 'killAll') {
+        state.ports = state.ports.map((p) => ({ ...p, state: 'stopped' }))
+        addLog('↵', 'SSE: ports stopped (kill all từ thiết bị khác)', 'api')
+        render()
+      }
+      if (msg.kind === 'portKill' && msg.port != null) {
+        state.ports = state.ports.map((p) => p.port === msg.port ? { ...p, state: 'stopped' } : p)
+        addLog('↵', 'SSE: :' + msg.port + ' stopped (from another device)', 'api')
+        render()
+      }
+    }
+    channel.postMessage({ kind: 'hello' })
+  }
+
+  /* ── Event log ────────────────────────────────────────────────────────── */
+  function addLog(method, text, cls) {
+    const t = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    log.unshift({ t, method, text, cls })
+    log = log.slice(0, 40)
+    $('evlogBody').innerHTML = log.map((e) =>
+      `<div><span class="t">${e.t}</span><span class="mono" style="color:var(--dsw-alias-label-primary)">${esc(e.method)}</span> <span class="${e.cls || ''}">${esc(e.text)}</span></div>`
+    ).join('')
+  }
+  $('clearLog').addEventListener('click', () => { log = []; $('evlogBody').innerHTML = '' })
+
+  /* ── Toasts ──────────────────────────────────────────────────────────── */
+  function toast(text, tone) {
+    const node = document.createElement('div')
+    node.className = 'toast'
+    node.innerHTML = `<span class="${tone === 'warn' ? 'warn' : 'ok'}">${tone === 'warn' ? '!' : '✓'}</span> ${esc(text)}`
+    $('toasts').appendChild(node)
+    window.setTimeout(() => node.remove(), 2600)
+  }
+
+  /* ── Host "service" methods: one operation, two callers (UI + tool) ───── */
+  const ops = {
+    addSteps(texts, source) {
+      let added = 0, skipped = 0
+      for (const raw of texts) {
+        const text = raw.replace(/^\s*(?:[-*•]|\d+[.)]|\[\s?\])\s*/, '').trim()
+        if (text === '') continue
+        if (state.steps.some((s) => s.text.trim() === text)) { skipped += 1; continue }
+        state.steps.push({
+          id: 's' + Math.random().toString(36).slice(2, 8),
+          text, done: false, source,
+        })
+        added += 1
+      }
+      addLog('POST', `addSteps(${added} added${skipped ? `, ${skipped} dup skipped` : ''}, source=${source})`, 'api')
+      return { added, skipped }
+    },
+    toggleStep(id) {
+      const s = state.steps.find((x) => x.id === id)
+      if (s === undefined) return
+      s.done = !s.done
+      addLog('PATCH', `toggleStep(${id}) → done=${s.done}`, 'api')
+    },
+    editStep(id, text) {
+      const s = state.steps.find((x) => x.id === id)
+      if (s === undefined) return
+      s.text = text
+      addLog('PATCH', `editStep(${id})`, 'api')
+    },
+    moveStep(id, dir) {
+      const i = state.steps.findIndex((x) => x.id === id)
+      const j = i + dir
+      if (i < 0 || j < 0 || j >= state.steps.length) return
+      const [item] = state.steps.splice(i, 1)
+      state.steps.splice(j, 0, item)
+      addLog('PATCH', `moveStep(${id}, ${dir > 0 ? 'down' : 'up'})`, 'api')
+    },
+    removeStep(id) {
+      state.steps = state.steps.filter((x) => x.id !== id)
+      addLog('DELETE', `removeStep(${id})`, 'api')
+    },
+    clearDone() {
+      const before = state.steps.length
+      state.steps = state.steps.filter((x) => !x.done)
+      addLog('DELETE', `clearDone() — ${before - state.steps.length} removed`, 'api')
+    },
+    simEdit() {
+      state.git.uncommitted.added += 18
+      state.git.uncommitted.deleted += 2
+      state.git.uncommitted.files += 1
+      state.git.branchDelta.added += 18
+      state.git.branchDelta.deleted += 2
+      state.git.branchDelta.files += 1
+      addLog('IN', 'tool/result (edit) → git rescan: +18 −2', 'api')
+    },
+    simUndoEdit() {
+      state.git.uncommitted.added = Math.max(0, state.git.uncommitted.added - 18)
+      state.git.uncommitted.deleted = Math.max(0, state.git.uncommitted.deleted - 2)
+      state.git.uncommitted.files = Math.max(0, state.git.uncommitted.files - 1)
+      state.git.branchDelta.added = Math.max(0, state.git.branchDelta.added - 18)
+      state.git.branchDelta.deleted = Math.max(0, state.git.branchDelta.deleted - 2)
+      state.git.branchDelta.files = Math.max(0, state.git.branchDelta.files - 1)
+      addLog('IN', 'tool/result → git rescan (reverted)', 'api')
+    },
+    simPort() {
+      if (state.ports.some((p) => p.port === 3000 && p.state === 'listening')) return
+      state.ports = state.ports.filter((p) => p.port !== 3000)
+      state.ports.push({ port: 3000, host: '127.0.0.1', pid: 42117, processName: 'node', command: 'next dev -p 3000', origin: 'worktree', state: 'listening' })
+      addLog('IN', 'port scan → :3000 listening (origin=worktree cwd)', 'api')
+    },
+    killPort(port) {
+      const p = state.ports.find((x) => x.port === port)
+      if (p === undefined) return
+      if (p.pid === 1 || p.protected) { toast('Bị chặn: PID của DSH Host', 'warn'); return }
+      p.state = 'stopped'
+      addLog('POST', `killPort(${port}, pid=${p.pid}) → SIGTERM → exited`, 'api')
+      toast(`:${port} đã dừng`)
+      broadcast({ kind: 'portKill', port })
+    },
+    killAll() {
+      const live = state.ports.filter((p) => p.state === 'listening')
+      if (live.length === 0) { toast('Không còn port nào đang mở', 'warn'); return }
+      state.ports = state.ports.map((p) => ({ ...p, state: 'stopped' }))
+      addLog('POST', `killAll(${live.length} ports) → ctx.jobs.kill + SIGTERM → exited`, 'api')
+      toast(`Đã kill ${live.length} port — DSH :3080 không bị ảnh hưởng`)
+      broadcast({ kind: 'killAll' })
+    },
+    clearStopped() {
+      const n = state.ports.filter((p) => p.state === 'stopped').length
+      state.ports = state.ports.filter((p) => p.state === 'listening')
+      addLog('DELETE', `clearStopped() — ${n} removed`, 'api')
+      toast(`Đã xoá ${n} port đã dừng`)
+    },
+  }
+
+  /* ── Render ──────────────────────────────────────────────────────────── */
+  function render() {
+    renderStrip()
+    renderDrawer()
+    renderSidebar()
+  }
+
+  function activePorts() { return state.ports.filter((p) => p.state === 'listening') }
+  function doneCount() { return state.steps.filter((s) => s.done).length }
+
+  function renderStrip() {
+    const g = state.git
+    const d = g.scope === 'branch' ? g.branchDelta : g.uncommitted
+    $('gitBranch').textContent = 'wt:' + g.worktreeName
+    $('gitScopeLabel').textContent = '· ' + g.scope
+    $('gitAdd').textContent = '+' + d.added
+    $('gitDel').textContent = '−' + d.deleted
+
+    const live = activePorts()
+    const chips = $('portsChips')
+    chips.innerHTML = ''
+    const shown = live.slice(0, 2)
+    for (const p of shown) {
+      const chip = document.createElement('span')
+      chip.className = 'port-chip'
+      chip.title = `${p.processName} · pid ${p.pid} · ${p.command}`
+      chip.innerHTML = `<span class="live"></span><span class="mono">:${p.port}</span>`
+      chips.appendChild(chip)
+    }
+    if (live.length > 2) {
+      const more = document.createElement('span')
+      more.className = 'port-chip'
+      more.textContent = `+${live.length - 2}`
+      more.title = live.slice(2).map((p) => ':' + p.port).join(', ')
+      chips.appendChild(more)
+    }
+
+    $('killAllCount').textContent = `(${live.length})`
+    $('killAllBtn').disabled = live.length === 0
+    $('killAllBtn').style.opacity = live.length === 0 ? '.5' : '1'
+
+    $('stepsCount').textContent = `${doneCount()}/${state.steps.length}`
+    $('stepsCount').style.color = doneCount() === state.steps.length && state.steps.length > 0
+      ? 'var(--dsw-alias-state-success-primary)' : ''
+
+    $('wnStrip').classList.toggle('expanded', expanded)
+    $('expandStrip').textContent = expanded ? '▴' : '▾'
+  }
+
+  function renderDrawer() {
+    // Ports
+    const live = activePorts()
+    const stopped = state.ports.filter((p) => p.state === 'stopped')
+    $('portsMeta').textContent = `· ${live.length} live${stopped.length > 0 ? `, ${stopped.length} stopped` : ''}`
+    const rows = $('portRows')
+    if (state.ports.length === 0) {
+      rows.innerHTML = '<div class="empty-note">Chưa phát hiện port nào cho session này.</div>'
+    } else {
+      rows.innerHTML = state.ports.map((p) => `
+        <div class="port-row">
+          <span class="${p.state === 'listening' ? 'live' : 'dead'}" style="width:6px;height:6px;border-radius:999px;flex:none;background:${p.state === 'listening' ? 'var(--dsw-alias-state-success-primary)' : 'var(--dsw-alias-state-idle-primary)'}"></span>
+          <span class="mono" style="width:52px">:${p.port}</span>
+          <span class="grow"><span class="proc">${esc(p.processName)}</span> <span class="mono" style="color:var(--dsw-alias-label-secondary);font-size:11px">pid ${p.pid}</span></span>
+          <span class="tag">${p.origin === 'worktree' ? 'wt' : p.origin}</span>
+          <button type="button" class="mini-btn" data-open-port="${p.port}" title="Open http://127.0.0.1:${p.port}">↗</button>
+          <button type="button" class="mini-btn" data-copy-port="${p.port}" title="Copy URL">⧉</button>
+          ${p.state === 'listening' ? `<button type="button" class="mini-btn danger" data-kill-port="${p.port}" title="Kill this port">✕</button>` : ''}
+        </div>`).join('')
+    }
+
+    // Steps
+    $('stepRows').innerHTML = state.steps.length === 0
+      ? '<div class="empty-note">Chưa có bước nào. Thêm bằng ô bên dưới, hoặc bôi đen text trong chat để Pin.</div>'
+      : state.steps.map((s, i) => `
+        <div class="step-row${s.done ? ' done' : ''}" data-step="${s.id}">
+          <button type="button" class="step-check${s.done ? ' on' : ''}" data-toggle-step="${s.id}" role="checkbox" aria-checked="${s.done}" title="Toggle">✓</button>
+          <span class="step-text grow" contenteditable="true" data-edit-step="${s.id}" spellcheck="false">${esc(s.text)}</span>
+          ${s.source === 'user' ? '<span class="tag user" title="Pinned from your selection">you</span>' : '<span class="tag ai" title="Added by the agent">ai</span>'}
+          <span class="step-tools">
+            <button type="button" class="mini-btn" data-move-step="${s.id}" data-dir="-1" title="Move up" ${i === 0 ? 'disabled style="opacity:.35"' : ''}>↑</button>
+            <button type="button" class="mini-btn" data-move-step="${s.id}" data-dir="1" title="Move down" ${i === state.steps.length - 1 ? 'disabled style="opacity:.35"' : ''}>↓</button>
+            <button type="button" class="mini-btn danger" data-remove-step="${s.id}" title="Remove">✕</button>
+          </span>
+        </div>`).join('')
+
+    const remaining = state.steps.length - doneCount()
+    $('stepsRemaining').textContent = state.steps.length === 0 ? 'Chưa có bước nào' : `${remaining} bước cần làm`
+  }
+
+  function renderSidebar() {
+    const g = state.git
+    $('rbScopeTag').textContent = g.scope
+    $('rbPath').textContent = g.cwd
+    $('rbBranch').textContent = g.branch
+    $('rbKind').textContent = 'Linked worktree (created by this session)'
+    $('rbUncAdd').textContent = '+' + g.uncommitted.added
+    $('rbUncDel').textContent = '−' + g.uncommitted.deleted
+    $('rbUncFiles').textContent = '· ' + g.uncommitted.files + ' files'
+
+    const live = activePorts()
+    const stopped = state.ports.filter((p) => p.state === 'stopped')
+    $('rbPortsMeta').textContent = `(${live.length} live${stopped.length ? `, ${stopped.length} stopped` : ''})`
+    $('rbPortBody').innerHTML = state.ports.length === 0
+      ? '<tr><td colspan="4" class="empty-note">No ports for this session.</td></tr>'
+      : state.ports.map((p) => `
+        <tr>
+          <td><span class="${p.state === 'listening' ? 'live' : 'dead'}" style="display:inline-block;width:6px;height:6px;border-radius:999px;background:${p.state === 'listening' ? 'var(--dsw-alias-state-success-primary)' : 'var(--dsw-alias-state-idle-primary)'};margin-right:6px"></span><span class="mono">:${p.port}</span></td>
+          <td><span class="mono" style="font-size:12px">${esc(p.processName)}</span> <span style="color:var(--dsw-alias-label-secondary);font-size:11px">pid ${p.pid}</span><div class="cmd">${esc(p.command)}</div></td>
+          <td><span class="tag">${p.origin === 'worktree' ? 'wt cwd' : p.origin}</span></td>
+          <td class="actions">
+            ${p.state === 'listening' ? `<button type="button" class="mini-btn danger" data-kill-port="${p.port}" title="Kill">✕</button>` : '<span style="color:var(--dsw-alias-label-secondary);font-size:11px">stopped</span>'}
+          </td>
+        </tr>`).join('')
+
+    $('rbStepsMeta').textContent = `(${doneCount()}/${state.steps.length} done)`
+    $('rbSteps').innerHTML = state.steps.length === 0
+      ? '<div class="empty-note">Chưa có bước nào.</div>'
+      : state.steps.map((s, i) => `
+        <div class="rb-step${s.done ? ' done' : ''}">
+          <button type="button" class="step-check${s.done ? ' on' : ''}" data-toggle-step="${s.id}" role="checkbox" aria-checked="${s.done}">✓</button>
+          <span class="grow">
+            <span class="step-text" contenteditable="true" data-edit-step="${s.id}" spellcheck="false">${esc(s.text)}</span>
+            <div class="meta">${s.source === 'user' ? 'pinned by you' : 'added by agent'}${i === 0 ? '' : ''}</div>
+          </span>
+          <button type="button" class="mini-btn danger" data-remove-step="${s.id}" title="Remove">✕</button>
+        </div>`).join('')
+  }
+
+  /* ── Delegated UI events ─────────────────────────────────────────────── */
+  document.addEventListener('click', (event) => {
+    const el = event.target.closest('[data-toggle-step],[data-remove-step],[data-move-step],[data-kill-port],[data-open-port],[data-copy-port]')
+    if (el === null) return
+    if (el.hasAttribute('data-toggle-step')) {
+      ops.toggleStep(el.getAttribute('data-toggle-step')); afterMutate()
+    } else if (el.hasAttribute('data-remove-step')) {
+      ops.removeStep(el.getAttribute('data-remove-step')); afterMutate()
+    } else if (el.hasAttribute('data-move-step')) {
+      ops.moveStep(el.getAttribute('data-move-step'), Number(el.getAttribute('data-dir'))); afterMutate()
+    } else if (el.hasAttribute('data-kill-port')) {
+      ops.killPort(Number(el.getAttribute('data-kill-port'))); afterMutate()
+    } else if (el.hasAttribute('data-open-port')) {
+      const p = Number(el.getAttribute('data-open-port'))
+      addLog('GET', `open http://127.0.0.1:${p}`)
+      toast(`Mở http://127.0.0.1:${p} (wireframe)`); event.stopPropagation()
+    } else if (el.hasAttribute('data-copy-port')) {
+      const p = Number(el.getAttribute('data-copy-port'))
+      navigator.clipboard?.writeText(`http://127.0.0.1:${p}`).catch(() => {})
+      toast(`Đã copy http://127.0.0.1:${p}`)
+    }
+  })
+  document.addEventListener('focusout', (event) => {
+    const el = event.target.closest('[data-edit-step]')
+    if (el === null) return
+    ops.editStep(el.getAttribute('data-edit-step'), el.textContent.trim()); afterMutate()
+  })
+  document.addEventListener('keydown', (event) => {
+    const el = event.target.closest('[data-edit-step]')
+    if (el !== null && event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); el.blur() }
+  })
+
+  function afterMutate() {
+    render()
+    broadcast({ kind: 'state', state })
+  }
+
+  /* Forms */
+  function submitAdd(input) {
+    const lines = input.value.split('\n').map((l) => l.trim()).filter(Boolean)
+    if (lines.length === 0) return
+    const { added } = ops.addSteps(lines, 'user')
+    input.value = ''
+    if (added > 0) { toast(added === 1 ? 'Đã thêm 1 bước' : `Đã thêm ${added} bước`) } else toast('Bước này đã tồn tại', 'warn')
+    if (!expanded) expanded = true
+    afterMutate()
+  }
+  $('addStepForm').addEventListener('submit', (e) => { e.preventDefault(); submitAdd($('addStepInput')) })
+  $('addStepInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitAdd($('addStepInput')) }
+  })
+  $('rbAddStepForm').addEventListener('submit', (e) => { e.preventDefault(); submitAdd($('rbAddStepInput')) })
+
+  /* Strip buttons */
+  $('expandStrip').addEventListener('click', () => { expanded = !expanded; renderStrip() })
+  $('stepsPill').addEventListener('click', () => { expanded = true; renderStrip(); $('addStepInput').focus() })
+  $('gitPill').addEventListener('click', () => {
+    state.git.scope = state.git.scope === 'uncommitted' ? 'branch' : 'uncommitted'
+    addLog('PATCH', `ui.gitScope = ${state.git.scope}`, 'api')
+    openRightbar(); afterMutate()
+  })
+  $('popOut').addEventListener('click', openRightbar)
+  $('openSidebarFromHeader').addEventListener('click', openRightbar)
+
+  /* Kill all: two-press confirm (mirrors ui-jobs stop control) */
+  $('killAllBtn').addEventListener('click', () => {
+    if (killAllArmed !== null) {
+      window.clearTimeout(killAllArmed)
+      killAllArmed = null
+      ops.killAll()
+      $('killAllBtn').classList.remove('armed')
+      $('killAllBtn').innerHTML = '⏻ Kill all <span id="killAllCount">(0)</span>'
+      afterMutate()
+      return
+    }
+    $('killAllBtn').classList.add('armed')
+    $('killAllBtn').innerHTML = '⚠ Confirm kill?'
+    addLog('UI', 'kill-all armed (click again within 3s)', 'api')
+    killAllArmed = window.setTimeout(() => {
+      killAllArmed = null
+      $('killAllBtn').classList.remove('armed')
+      renderStrip()
+    }, 3000)
+  })
+  $('rbKillAll').addEventListener('click', () => { ops.killAll(); afterMutate() })
+
+  const refreshPorts = () => { addLog('POST', 'refresh() → port scan', 'api'); toast('Đã quét lại ports'); afterMutate() }
+  $('refreshPorts').addEventListener('click', refreshPorts)
+  $('rbRefreshPorts').addEventListener('click', refreshPorts)
+  $('clearStopped').addEventListener('click', () => { ops.clearStopped(); afterMutate() })
+  $('clearDone').addEventListener('click', () => { ops.clearDone(); afterMutate() })
+  $('rbClearDone').addEventListener('click', () => { ops.clearDone(); afterMutate() })
+  $('simEdit').addEventListener('click', () => { ops.simEdit(); afterMutate() })
+  $('simUndoEdit').addEventListener('click', () => { ops.simUndoEdit(); afterMutate() })
+  $('simPort').addEventListener('click', () => { ops.simPort(); afterMutate() })
+  $('rbRefresh').addEventListener('click', () => { addLog('POST', 'refresh() → git + port scan', 'api'); toast('Đã quét lại git & ports'); afterMutate() })
+  $('copyPath').addEventListener('click', () => {
+    navigator.clipboard?.writeText(state.git.cwd).catch(() => {})
+    toast('Đã copy đường dẫn worktree')
+    addLog('UI', 'copy worktree path')
+  })
+  $('sendSummary').addEventListener('click', () => {
+    addLog('UI', 'send summary → composer')
+    toast('Đã chèn tóm tắt Working Note vào composer (wireframe)')
+  })
+
+  /* Right sidebar controls */
+  function openRightbar() {
+    $('frame').classList.add('rightbar-open')
+    $('frame').classList.remove('rightbar-closed')
+    addLog('UI', 'sidebarRight.openTab("working-note")')
+  }
+  $('closeRightbar').addEventListener('click', () => {
+    $('frame').classList.remove('rightbar-open')
+    $('frame').classList.add('rightbar-closed')
+    addLog('UI', 'sidebarRight collapse')
+  })
+  $('floatTab').addEventListener('click', () => {
+    toast('Tab sẽ được float thành cửa sổ nổi (Dockkit) trong bản thật')
+    addLog('UI', 'sidebarRight.float(tab)')
+  })
+  $('toggleRightbar').addEventListener('click', () => {
+    if ($('frame').classList.contains('rightbar-open')) $('closeRightbar').click()
+    else openRightbar()
+  })
+  $('toggleSidebar').addEventListener('click', () => {
+    $('frame').classList.toggle('sidebar-collapsed')
+  })
+
+  /* Reset */
+  $('resetDemo').addEventListener('click', () => {
+    state = clone(SEED)
+    expanded = false
+    log = []
+    $('evlogBody').innerHTML = ''
+    addLog('UI', 'demo reset')
+    render()
+    broadcast({ kind: 'reset' })
+  })
+
+  /* Theme switch (token-driven) */
+  for (const btn of document.querySelectorAll('[data-theme-set]')) {
+    btn.addEventListener('click', () => {
+      const theme = btn.getAttribute('data-theme-set')
+      document.documentElement.setAttribute('data-theme', theme)
+      for (const other of document.querySelectorAll('[data-theme-set]')) {
+        other.setAttribute('aria-pressed', String(other === btn))
+      }
+    })
+  }
+
+  $('closeHint').addEventListener('click', () => $('hintCard').remove())
+
+  /* ── Selection toolbar (chat text interaction) ────────────────────────── */
+  const toolbar = $('selToolbar')
+  const splitMenu = $('splitMenu')
+  let lastSelection = ''
+  /** Where the current mouse press began; null outside a press. */
+  let press = null
+
+  function hideSelectionUi() {
+    toolbar.classList.remove('open')
+    splitMenu.classList.remove('open')
+    $('actMore').setAttribute('aria-expanded', 'false')
+  }
+
+  function placeToolbar(rect) {
+    toolbar.classList.add('open')
+    const w = toolbar.offsetWidth
+    const h = toolbar.offsetHeight
+    let left = rect.left + rect.width / 2 - w / 2
+    left = Math.max(8, Math.min(window.innerWidth - w - 8, left))
+    let top = rect.top - h - 8
+    if (top < 48) top = rect.bottom + 8
+    toolbar.style.left = left + 'px'
+    toolbar.style.top = top + 'px'
+  }
+
+  document.addEventListener('pointerdown', (event) => {
+    // Portaled surfaces hold "mouse held" state so a press that starts inside them
+    // never ends as a click on the page behind.
+    if (toolbar.contains(event.target) || $('ctxMenu').contains(event.target)) return
+    const previouslyVisible = toolbar.classList.contains('open')
+    if (previouslyVisible) hideSelectionUi()
+    press = {
+      onTranscript: event.target.closest !== undefined && event.target.closest('#transcript') !== null,
+      previouslyVisible,
+    }
+  }, true)
+
+  document.addEventListener('mouseup', (event) => {
+    const started = press
+    press = null
+    if (started === null) return
+    if (toolbar.contains(event.target) || $('ctxMenu').contains(event.target)) return
+    window.setTimeout(() => {
+      const sel = window.getSelection()
+      const text = sel !== null && !sel.isCollapsed ? sel.toString().trim() : ''
+      const anchorOk = sel !== null && sel.anchorNode !== null && $('transcript').contains(sel.anchorNode)
+      if (text !== '' && anchorOk) {
+        lastSelection = text
+        const range = sel.getRangeAt(0)
+        placeToolbar(range.getBoundingClientRect())
+        addLog('UI', 'text selection → dispatch("selection") → quote|working-note toolbar')
+        return
+      }
+      // An untouched press on the page that had the surface open: the surface already
+      // closed on mousedown, so the click lands on what the user aimed at.
+      if (!started.onTranscript && !started.previouslyVisible) hideSelectionUi()
+    }, 0)
+  }, true)
+
+  function selectedLines() {
+    const sel = window.getSelection()
+    if (sel !== null && !sel.isCollapsed) return sel.toString()
+    return lastSelection
+  }
+
+  function pinSelection(split) {
+    const raw = selectedLines()
+    const texts = split
+      ? raw.split('\n').map((l) => l.trim()).filter(Boolean)
+      : [raw.replace(/\s+/g, ' ').trim()]
+    const { added, skipped } = ops.addSteps(texts, 'user')
+    if (added === 0) toast('Đoạn này đã được ghim trước đó', 'warn')
+    else toast(added === 1 ? 'Đã ghim 1 step (source: user)' : `Đã ghim ${added} step từ đoạn bôi đen`)
+    if (skipped > 0 && added > 0) toast(`${skipped} dòng trùng, bỏ qua`, 'warn')
+    hideSelectionUi()
+    window.getSelection()?.removeAllRanges()
+    afterMutate()
+    const strip = $('wnStrip')
+    strip.animate(
+      [{ outline: '2px solid var(--dsw-alias-brand-primary)', outlineOffset: '2px' },
+       { outline: '2px solid transparent', outlineOffset: '2px' }],
+      { duration: 900, easing: 'ease-out' })
+  }
+
+  $('actPin').addEventListener('click', () => pinSelection(false))
+  $('actSplit').addEventListener('click', () => pinSelection(true))
+  $('actQuote').addEventListener('click', () => {
+    addLog('UI', 'quote → inputActions.insertQuote(text)')
+    toast('Quote: chèn khối “> …” vào composer (wireframe)')
+    hideSelectionUi()
+  })
+  $('actSendToChat').addEventListener('click', () => {
+    addLog('UI', 'quote + working note summary → composer')
+    toast('Đã chèn quote + tóm tắt Working Note vào composer')
+    hideSelectionUi()
+  })
+  $('actMore').addEventListener('click', () => {
+    const open = splitMenu.classList.toggle('open')
+    $('actMore').setAttribute('aria-expanded', String(open))
+  })
+
+  /* ── Context-menu fallback + keyboard shortcut ────────────────────────── */
+  const ctxMenu = $('ctxMenu')
+  $('transcript').addEventListener('contextmenu', (event) => {
+    const sel = window.getSelection()
+    if (sel === null || sel.isCollapsed) return
+    const node = sel.anchorNode
+    if (node === null || !$('transcript').contains(node)) return
+    lastSelection = sel.toString().trim()
+    if (lastSelection === '') return
+    event.preventDefault()
+    hideSelectionUi()
+    ctxMenu.classList.add('open')
+    const w = ctxMenu.offsetWidth
+    const h = ctxMenu.offsetHeight
+    ctxMenu.style.left = Math.min(event.clientX, window.innerWidth - w - 8) + 'px'
+    ctxMenu.style.top = Math.min(event.clientY, window.innerHeight - h - 8) + 'px'
+    addLog('UI', 'contextmenu → dispatch("contextmenu")')
+  })
+  $('ctxPin').addEventListener('click', () => { ctxMenu.classList.remove('open'); pinSelection(false) })
+  $('ctxCopy').addEventListener('click', () => {
+    navigator.clipboard?.writeText(selectedLines()).catch(() => {})
+    ctxMenu.classList.remove('open')
+    addLog('UI', 'copy selection')
+  })
+  $('ctxInspect').addEventListener('click', () => { ctxMenu.classList.remove('open'); addLog('UI', 'inspect') })
+  document.addEventListener('mousedown', (event) => {
+    if (!ctxMenu.contains(event.target)) ctxMenu.classList.remove('open')
+  })
+  document.addEventListener('keydown', (event) => {
+    if (event.altKey && event.shiftKey && (event.key === 'P' || event.key === 'p')) {
+      const raw = selectedLines()
+      if (raw.trim() === '') return
+      event.preventDefault()
+      pinSelection(false)
+    }
+    if (event.key === 'Escape') { hideSelectionUi(); ctxMenu.classList.remove('open') }
+  })
+
+  /* ── Boot ────────────────────────────────────────────────────────────── */
+  render()
+  addLog('GET', 'storageDomain.open(dsh_working_note, per-record) → record(sessionId)')
+  addLog('GET', 'GET /api/working-note/stream → SSE opened (initial snapshot)')
+})()
+</script>
+</body>
+</html>

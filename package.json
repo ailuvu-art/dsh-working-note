@@ -1,0 +1,58 @@
+{
+  "name": "dsh-working-note",
+  "version": "0.1.0",
+  "description": "Pins the session's working context above the composer: git worktree and line delta, the ports opened for manual testing with a guarded Kill all, and hands-on steps the agent or the user pin. Stored on the Host and synced to every connected device; cleaned up with the session.",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ailuvu-art/dsh-working-note.git"
+  },
+  "homepage": "https://github.com/ailuvu-art/dsh-working-note#readme",
+  "bugs": {
+    "url": "https://github.com/ailuvu-art/dsh-working-note/issues"
+  },
+  "exports": {
+    ".": "./index.mjs",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.mjs",
+    "src",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md"
+  ],
+  "scripts": {
+    "check": "node --check index.mjs && node --check client.js",
+    "test": "node --test tests/unit/ tests/host/",
+    "test:ui": "node tests/mockup-smoke.mjs && node tests/cross-tab-smoke.mjs"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-sidebar-right",
+        "@deepseek-ai/dsh-client-locale"
+      ]
+    }
+  },
+  "keywords": [
+    "deepseek",
+    "harness",
+    "dsh",
+    "dsh-plugin",
+    "working-note",
+    "ports",
+    "worktree"
+  ]
+}
